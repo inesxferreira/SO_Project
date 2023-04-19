@@ -3,12 +3,20 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdlib.h>
+#include <time.h> 
+#include "structs.h"
 
 // cliente
 
 int main(int argc, char *argv[])
 {
     // Verificar se foi passado o nome do programa a executar
+    PEDIDO p;
+    pid_t pid = getpid();
+    p.pid=pid;
+    time_t current_time;
+    current_time=time(NULL);
+    p.initial_timestamp = (long) current_time;
     if (argc < 2)
     {
         printf("Uso: %s <nome_do_programa> [argumentos...]\n", argv[0]);
@@ -20,7 +28,7 @@ int main(int argc, char *argv[])
     char **program_args = &argv[1];
 
     // Fork para criar um novo processo para executar o programa
-    pid_t pid = fork();
+    
 
     if (pid < 0)
     {
@@ -50,9 +58,10 @@ int main(int argc, char *argv[])
         // Notificar o servidor da conclusão do programa (enviar informações via pipe, por exemplo)
 
         // Calcular o tempo de execução do programa
-        double runtime = (double)(clock() - start_time) / CLOCKS_PER_SEC * 1000;
-        printf("Tempo de execução: %.2f ms\n", runtime)
+        //time_t current_time;
+        //time(&current_time);
+        //double runtime = (double)(clock() - start_time) / CLOCKS_PER_SEC * 1000;
+        //printf("Tempo de execução: %.2f ms\n", runtime)
     }
-
-    return 0;
+     return 0;
 }
