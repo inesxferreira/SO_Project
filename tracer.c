@@ -3,65 +3,67 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <stdlib.h>
-#include <time.h> 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "structs.h"
+#include <sys/time.h> // in order to obtain the current time stamp
 
 // cliente
+
 
 int main(int argc, char *argv[])
 {
     // Verificar se foi passado o nome do programa a executar
+    char buffer_pedido[512];
+    char buffer_resposta[512];
+    int fd_serverToClient;
+    int fd_clientToServer;
+    char status="status";
+    int bytes_read;
     PEDIDO p;
     pid_t pid = getpid();
     p.pid=pid;
     time_t current_time;
     current_time=time(NULL);
     p.initial_timestamp = (long) current_time;
-    if (argc < 2)
-    {
-        printf("Uso: %s <nome_do_programa> [argumentos...]\n", argv[0]);
-        exit(1);
+    if (argc <2){ // se o comando tiver errado (tem que ter pelo menos 2 argumentos para o status)
+        _exit(EXIT_FAILURE);
     }
+    //char *fifo_str [20];
+    //sprintf(fifo_str , "tmp/%d", p.pid);
+    //p.pipe_id= fifo_str;
+    fd_clientToServer = open("clientToServer", O_WRONLY);
+    if (strcmp(argv[1], "execute") == 0){
+        if (strcmp(argv[2], "-u")){
+            if (fd_clientToServer == -1){ // não conseguiu abrir
+                perror("Erro ao abrir o fifo do cliente");
+                _exit(EXIT_FAILURE);}
 
-    // Obter o nome do programa e os argumentos
-    char *program_name = argv[1];
-    char **program_args = &argv[1];
-
-    // Fork para criar um novo processo para executar o programa
+            //manda o pedido ao servidor
+            strcpy(p.nome_programa, argv[3]);  // guardamos o nome do programa à struct
+            sprintf(buffer_pedido,"%s", argv[3]); // guardamos no buffer o nome do programa
+            write(fd_clientToServer,buffer_pedido,strlen(buffer_pedido));
+        }
+    if (strcmp(argv[1], "status") == 0){
+            //manda o pedido ao servidor
+            write(fd_clientToServer,status,strlen(status));
+            }
     
+    //recebe a resposta do servdor
+    fd_serverToClient = open("serverToClient", O_RDONLY);
+    if (fd_serverToClient == -1){
+        perror("Erro ao abrir o fifo do servidor");
+        _exit(EXIT_FAILURE); }
+    bytes_read=read(fd_serverToClient,buffer_resposta,strlen(buffer_resposta)-1);
+    if(bytes_read == -1) {
+        perror("Erro ao ler o fifo do servidor");
+        _exit(EXIT_FAILURE); }
+    buffer_resposta[bytes_read] = '\0';
+    write(1,buffer_resposta,bytes_read);}
 
-    if (pid < 0)
-    {
-        // Erro ao criar o processo filho
-        perror("Erro ao criar processo filho");
-        exit(1);
-    }
-    else if (pid == 0)
-    {
-        // Processo filho - executar o programa
-        execvp(program_name, program_args);
-        // Se execvp retornar, houve um erro na execução do programa
-        perror("Erro ao executar programa");
-        exit(1);
-    }
-    else
-    {
-        // Processo pai - notificar o servidor e aguardar a conclusão do programa
-        printf("Programa em execução com PID: %d\n", pid);
-
-        // Notificar o servidor do início da execução do programa (enviar informações via pipe, por exemplo)
-
-        // Aguardar a conclusão do programa
-        int status;
-        waitpid(pid, &status, 0);
-
-        // Notificar o servidor da conclusão do programa (enviar informações via pipe, por exemplo)
-
-        // Calcular o tempo de execução do programa
-        //time_t current_time;
-        //time(&current_time);
-        //double runtime = (double)(clock() - start_time) / CLOCKS_PER_SEC * 1000;
-        //printf("Tempo de execução: %.2f ms\n", runtime)
-    }
-     return 0;
+    //fechar os fifos
+    close(fd_clientToServer);
+    close (fd_serverToClient);
+    return 0;
 }
