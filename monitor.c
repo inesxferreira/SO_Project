@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include "structs.h"
+#include "string.h"
 #include <sys/time.h> // in order to obtain the current time stamp
 #define PIPE_NAME "fifo"
 #define LOG_FILE "log.txt"
@@ -36,54 +37,54 @@ void log_file(PEDIDO p){
 
 int main(int argc, char const *argv[])
 {
-    int fd_server_pipe, log_fd;
-    char buffer[1024];
-    char *serverfifo = "/tmp/serverfifo";
-    // Verifica se o fifo foi criado com sucesso
-    if (mkfifo(PIPE_NAME, 0666) == -1)
-    {
-        perror("Erro ao criar o fifo");
-        exit(1);
-    }
-    // Abre o pipe com nome para leitura
-    if ((fd_server_pipe = open(PIPE_NAME, O_RDONLY)) == -1)
-    {
-        perror("Erro ao abrir o fifo");
-        exit(1);
-    }
-    // Abre o arquivo de log para escrita
-    if ((log_fd = open(LOG_FILE, O_WRONLY | O_CREAT | O_APPEND, 0666)) == -1)
-    {
-        perror("Erro ao abrir o arquivo de log");
-        exit(1);
-    }
-
-    while (1)
-    {
-         // Aguardar por pedidos dos clientes (ler informações via pipe, por exemplo)
-
-        // Processar os pedidos concorrentemente
-
-        // Verificar se um programa foi concluído e atualizar as estatísticas
-
-        // Responder aos pedidos dos clientes (enviar informações via pipe, por exemplo)
+    // criação dos fifos
+    char buffer_pedido[512];
+    char buffer_resposta[512];
+    int fd_serverToClient;
+    int fd_clientToServer;
+    int bytes_read;
+    mkfifo("/tmp/clientToServer",0666); // client -> server
+    mkfifo("/tmp/serverToClient",0666); // server -> client
     
-        int bytes_read= read(fd_server_pipe, buffer, sizeof(buffer));
-        if (bytes_read == -1){
-            perror("Erro ao ler");
-            exit(1);
-        }
-        if (bytes_read == 0){
-            break; // Não tem nada a ler, termina 
-        }
-        fwrite(buffer, sizeof(char), bytes_read, log_fd);
+    //abre o fifo para receber o pedido do cliente
+    fd_clientToServer = open("clientToServer", O_RDONLY);
+    if (fd_clientToServer == -1){
+        perror("Erro ao abrir o pedido do cliente");
+        _exit(EXIT_FAILURE);
     }
-    close(fd_server_pipe);
-    fclose(log_fd);
-    unlink("serverfifo");
-    
+
+    //abre o fifo para enviar a resposta ao cliente
+    fd_serverToClient = open("serverToClient", O_WRONLY);
+    if (fd_serverToClient == -1){
+        perror("Erro ao enviar a resposta ao cliente");
+        _exit(EXIT_FAILURE);
+    }
+
+    //lê os comandos que vêm no fifo do client
+    while((bytes_read == read(fd_clientToServer, buffer_pedido, strlen(buffer_pedido)-1))>0){
+        if(bytes_read == -1){
+            perror("Erro ao ler o pedido do cliente");
+            _exit(EXIT_FAILURE);
+        }
+        buffer_pedido[bytes_read] ='\0';
+        FILE *executefile;
+        char buffer_dos_comandos[512];
+        char buffer_dos_resultados[512];
+        sprintf(buffer_dos_comandos, "%s 2>&1", buffer_pedido);
+        executefile = open(buffer_dos_comandos, "r");
+        if (executefile == NULL){
+            sprintf(buffer_dos_resultados, "Erro ao executar os comandos\n");}
+        else{
+            while(fgets(buffer_dos_resultados, 512-1, executefile)!= NULL){
+                strcat(buffer_resposta, buffer_dos_resultados); }
+            pclose(executefile);
+        }
+        write(fd_serverToClient, buffer_resposta, strlen(buffer_resposta));
+
+    }
+    close(fd_clientToServer);
+    close(fd_serverToClient);
+    unlink("/tmp/clientToServer");
+    unlink("/tmp/serverToClient");
     return 0;
-
-       
 }
-

@@ -10,7 +10,7 @@ typedef struct pedido
 // struct que guarda os pedidos em execução num dado momento
 typedef struct pedidos_execucao{
     PEDIDO pedido;
-    struct pedidosexecucão *prox;
+    struct pedidosexecucao *prox;
 }PEDIDOSEXECUCAO;
 
 
