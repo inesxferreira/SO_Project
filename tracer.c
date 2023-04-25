@@ -33,9 +33,9 @@ int main(int argc, char *argv[])
     //char *fifo_str [20];
     //sprintf(fifo_str , "tmp/%d", p.pid);
     //p.pipe_id= fifo_str;
-    fd_clientToServer = open("clientToServer", O_WRONLY);
+    fd_clientToServer = open("/tmp/clientToServer", O_WRONLY);
     if (strcmp(argv[1], "execute") == 0){
-        if (strcmp(argv[2], "-u")){
+        if (strcmp(argv[2], "-u")== 0){
             if (fd_clientToServer == -1){ // não conseguiu abrir
                 perror("Erro ao abrir o fifo do cliente");
                 _exit(EXIT_FAILURE);}
@@ -51,16 +51,17 @@ int main(int argc, char *argv[])
             }
     
     //recebe a resposta do servdor
-    fd_serverToClient = open("serverToClient", O_RDONLY);
+    fd_serverToClient = open("/tmp/serverToClient", O_RDONLY);
     if (fd_serverToClient == -1){
         perror("Erro ao abrir o fifo do servidor");
         _exit(EXIT_FAILURE); }
-    bytes_read=read(fd_serverToClient,buffer_resposta,strlen(buffer_resposta)-1);
+    bytes_read=read(fd_serverToClient,buffer_resposta,sizeof(buffer_resposta)-1);
     if(bytes_read == -1) {
         perror("Erro ao ler o fifo do servidor");
         _exit(EXIT_FAILURE); }
     buffer_resposta[bytes_read] = '\0';
-    write(1,buffer_resposta,bytes_read);}
+    //printa no terminal
+    write(STDOUT_FILENO,buffer_resposta,bytes_read);}
 
     //fechar os fifos
     close(fd_clientToServer);
