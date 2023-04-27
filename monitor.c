@@ -39,48 +39,6 @@ void status_log_file(PEDIDOSEXECUCAO *head){
     fclose(log_file);
 }
 
-void addNovoPedido(PEDIDOSEXECUCAO **head, int pid, char nome_programa[],long time_initial){
-    PEDIDOSEXECUCAO *add = (PEDIDOSEXECUCAO*)malloc(sizeof(PEDIDOSEXECUCAO));
-    add->pid=pid;
-    strcpy(add->nome_programa, nome_programa);
-    add->prox = NULL;
-    add->pid=pid;
-    add->initial_timestamp=time_initial;
-    if(*head == NULL){
-        *head = add;
-        return;
-    }
-    PEDIDOSEXECUCAO*aux=*head;
-    while(aux->prox!=NULL){
-        aux=aux->prox;
-    }
-    aux->prox=add;
-}
-
-void removePedido(PEDIDOSEXECUCAO **head, int pid){
-    if (*head == NULL){
-        return;
-    }
-    //se o pedido a remover for a cabeça da lista, temos de fazer update da cabeça
-    if((*head)->pid == pid){
-        PEDIDOSEXECUCAO *aux = *head;
-        *head = (*head)->prox;
-        free(aux);
-        return;}
-    //caso contrário, temos de percorrer a struct até encontrar o elemento a ser removido
-    PEDIDOSEXECUCAO *atual=*head;
-    PEDIDOSEXECUCAO *ant=NULL;
-    while(atual!= NULL && atual->pid!=pid){
-        ant=atual;
-        atual=atual->prox;
-    }
-    //se o elemento for encontrado, removemo-lo da struct
-    if(atual!=NULL){
-        ant->prox=atual->prox;
-        free(atual);
-    }
-    }
-
 
 
 int main(int argc, char const *argv[]){
@@ -108,21 +66,27 @@ int main(int argc, char const *argv[]){
     }
 
     //lê os comandos que vêm no fifo do client
-    while((bytes_read == read(fd_clientToServer, buffer_pedido, strlen(buffer_pedido)-1))>0){
+    while((bytes_read == read(fd_clientToServer, buffer_pedido, sizeof(buffer_pedido)))>0){
         if(bytes_read == -1){
             perror("Erro ao ler o pedido do cliente");
             _exit(EXIT_FAILURE);
         }
         if (strcmp(buffer_pedido,"status") == 0){
+            printf("i am in status\n");
             FILE *log_status= fopen(LOG_FILE, "r"); //abrimos o ficheiro log para leitura
+            if(log_status == NULL){
+                perror("Erro ao abrir o ficheiro de log.");
+                _exit(EXIT_FAILURE);
+            }
             char log_buffer [512];
-            while(fgets(log_buffer,512,log_status)!=NULL){
+            while(fgets(log_buffer,sizeof(log_buffer),log_status)!=NULL){
                 write(fd_serverToClient,log_buffer,strlen(log_buffer));
             }
             fclose(log_status);}
 
         else{
         buffer_pedido[bytes_read] ='\0';
+        printf("i am in execute\n");
         FILE *executefile;
         char buffer_dos_comandos[512];
         char buffer_dos_resultados[512];
@@ -131,8 +95,10 @@ int main(int argc, char const *argv[]){
         if (executefile == NULL){
             sprintf(buffer_dos_resultados, "Erro ao executar os comandos\n");}
         else{
+            memset(buffer_resposta, 0, sizeof(buffer_resposta));
             while(fgets(buffer_dos_resultados, sizeof(buffer_dos_resultados)-1, executefile)!= NULL){
-                strcat(buffer_resposta, buffer_dos_resultados); }
+                strcat(buffer_resposta, buffer_dos_resultados); 
+                }
             pclose(executefile);
         }
         write(fd_serverToClient, buffer_resposta, strlen(buffer_resposta));}

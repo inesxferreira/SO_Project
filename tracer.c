@@ -13,45 +13,46 @@
 
 // cliente
 
-void parser(char *str, char ***tokens)
-{
-    char *token;
-    int i;
-
-    // contar o número de tokens
-    int *num_tokens = 0;
-    for (i = 0; str[i] != '\0'; i++)
-    {
-        if (str[i] == ' ')
-        {
-            (*num_tokens)++;
-        }
+void addNovoPedido(PEDIDOSEXECUCAO **head, int pid, char nome_programa[],long time_initial){
+    PEDIDOSEXECUCAO *add = (PEDIDOSEXECUCAO*)malloc(sizeof(PEDIDOSEXECUCAO));
+    add->pid=pid;
+    strcpy(add->nome_programa, nome_programa);
+    add->prox = NULL;
+    add->initial_timestamp=time_initial;
+    if(*head == NULL){
+        *head = add;
+        return;
     }
-    (*num_tokens)++; // contar o último comando
-
-    // alocar memória para o array de tokens
-    *tokens = (char **)malloc((*num_tokens) * sizeof(char *));
-    if (*tokens == NULL)
-    {
-        perror("Falha na alocação de memória");
-        exit(EXIT_FAILURE);
+    PEDIDOSEXECUCAO*aux=*head;
+    while(aux->prox!=NULL){
+        aux=aux->prox;
     }
-
-    // preencher o array de tokens
-    i = 0;
-    token = strtok(str, " ");
-    while (token != NULL)
-    {
-        (*tokens)[i] = strdup(token); // duplicar a string
-        if ((*tokens)[i] == NULL)
-        {
-            perror("Falha na alocação de memória");
-            exit(EXIT_FAILURE);
-        }
-        i++;
-        token = strtok(NULL, " ");
-    }
+    aux->prox=add;
 }
+
+void removePedido(PEDIDOSEXECUCAO **head, int pid){
+    if (*head == NULL){
+        return;
+    }
+    //se o pedido a remover for a cabeça da lista, temos de fazer update da cabeça
+    if((*head)->pid == pid){
+        PEDIDOSEXECUCAO *aux = *head;
+        *head = (*head)->prox;
+        free(aux);
+        return;}
+    //caso contrário, temos de percorrer a struct até encontrar o elemento a ser removido
+    PEDIDOSEXECUCAO *atual=*head;
+    PEDIDOSEXECUCAO *ant=NULL;
+    while(atual!= NULL && atual->pid!=pid){
+        ant=atual;
+        atual=atual->prox;
+    }
+    //se o elemento for encontrado, removemo-lo da struct
+    if(atual!=NULL){
+        ant->prox=atual->prox;
+        free(atual);
+    }
+    }
 
 int main(int argc, char *argv[])
 {
@@ -63,68 +64,73 @@ int main(int argc, char *argv[])
     const char *status = "status";
     int bytes_read;
     char **tokens;
-    parser(argv[3], &tokens);
-    struct timespec tempo_atual;
-    PEDIDO p;
+    PEDIDO pdido;
     pid_t pid = getpid();
-    p.pid = pid;
-    time_t current_time;
-    current_time = time(NULL);
-    p.initial_timestamp = (long)current_time;
+    pdido.pid= pid;
+    clock_t start_time, end_time;
+    double time_taken;
+    start_time=clock();
+    pdido.initial_timestamp = (double)start_time/CLOCKS_PER_SEC*1000;
     if (argc < 2)
     { // se o comando tiver errado (tem que ter pelo menos 2 argumentos para o status)
         _exit(EXIT_FAILURE);
     }
-    // char *fifo_str [20];
-    // sprintf(fifo_str , "tmp/%d", p.pid);
-    // p.pipe_id= fifo_str;
     fd_clientToServer = open("/tmp/clientToServer", O_WRONLY);
-
-    if (strcmp(argv[1], "execute") == 0)
-    {
-
-        if (strcmp(argv[2], "-u") == 0)
-        {
-            if ((pid = fork()) == 0)
-            {
-
+    if (strcmp(argv[1], "execute") == 0){
+        if (strcmp(argv[2], "-u") == 0){
+                char *args[256];
+                int i = 0;
+                char *token = strtok(argv[3], " ");
+                while (token != NULL) {
+                    args[i++] = token;
+                    token = strtok(NULL, " ");
+                }
+                args[i] = NULL;
+            if ((pid = fork()) == 0) {
                 if (fd_clientToServer == -1)
                 { // não conseguiu abrir
                     perror("Erro ao abrir o fifo do cliente");
                     _exit(EXIT_FAILURE);
                 }
                 // definir o tempo antes da execução do programa
-                clock_gettime(CLOCK_MONOTONIC, &tempo_atual);
-                current_time = tempo_atual.tv_sec * 1000 + tempo_atual.tv_nsec / 1000000;
-                // manda o pedido ao servidor
-                strcpy(p.nome_programa, argv[3]);      // guardamos o nome do programa à struct
-                sprintf(buffer_pedido, "%s", argv[3]); // guardamos no buffer o nome do programa
+                PEDIDOSEXECUCAO p;
+                PEDIDOSEXECUCAO* head = NULL;
+                p.pid = pdido.pid;
+                // o cliente informa o servidor do pedido a executar 
+                addNovoPedido(&head, pid,argv[3], (double)start_time/CLOCKS_PER_SEC*1000);
+                sprintf(buffer_pedido, "%d\n%s\n%ld\n", pdido.pid,argv[3],pdido.initial_timestamp); // guardamos no buffer o nome do programa
                 write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
-                _exit(1);
-            }
-            else
-            { // se for pai
+                char pid_string [30];
+                sprintf(pid_string,"Running PID %d\n",pdido.pid);
+                //o cliente informa o utilizador via standard output do pedido a executar
+                write(STDOUT_FILENO,pid_string,strlen(pid_string));
+                // o cliente executa o programa
+                 execvp(args[0], args);
+                return 1;
+                }
+           else { // se for pai
                 int statuss;
-                pid_t pid = wait(&statuss);
-                printf("o processo [%d] terminou.\n\n", pid);
-                // executa o programa
-                execvp(tokens[0], argv); // acho que com tokens[0] tou a aceder ao nome do programa
-                if (WEXITSTATUS(statuss))
-                {
-                    // enviar para o servidor
-                    clock_gettime(CLOCK_MONOTONIC, &tempo_atual);
-                    current_time = tempo_atual.tv_sec * 1000 + tempo_atual.tv_nsec / 1000000;
-                    write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
-                };
+                waitpid(pid,&statuss,0);
+                end_time= clock();
+                time_taken = ((double)(end_time - start_time)) / CLOCKS_PER_SEC * 1000;
+                //o cliente informa o servidor do pedido executado
+                sprintf(buffer_pedido, "%d\n%.2f\n", pid,time_taken); // guardamos no buffer o nome do programa
+                write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
+                char final_time[30];
+                sprintf(final_time,"Ended in %.2f ms\n", time_taken);
+                //o cliente informa o utilizador via standard output, do tempo de execução (em milisegundos) utilizado pelo programa
+                write(STDOUT_FILENO,final_time,strlen(final_time));
+        
+                }
             }
         }
-        if (strcmp(argv[1], "status") == 0)
-        {
+    else if (strcmp(argv[1], "status") == 0){
             // manda o pedido ao servidor
-            // write(fd_clientToServer, status, strlen(status));
+             write(fd_clientToServer, status, strlen(status));
         }
 
         // recebe a resposta do servdor
+
         fd_serverToClient = open("/tmp/serverToClient", O_RDONLY);
         if (fd_serverToClient == -1)
         {
@@ -140,7 +146,7 @@ int main(int argc, char *argv[])
         buffer_resposta[bytes_read] = '\0';
         // printa no terminal
         write(STDOUT_FILENO, buffer_resposta, bytes_read);
-    }
+    
 
     // fechar os fifos
     close(fd_clientToServer);
