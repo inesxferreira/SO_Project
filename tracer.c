@@ -13,7 +13,7 @@
 
 // cliente
 
-void addNovoPedido(PEDIDOSEXECUCAO **head, int pid, char nome_programa[],long time_initial){
+void addNovoPedido(PEDIDOSEXECUCAO **head, int pid, char nome_programa[], struct timeval time_initial){
     PEDIDOSEXECUCAO *add = (PEDIDOSEXECUCAO*)malloc(sizeof(PEDIDOSEXECUCAO));
     add->pid=pid;
     strcpy(add->nome_programa, nome_programa);
@@ -67,10 +67,13 @@ int main(int argc, char *argv[])
     PEDIDO pdido;
     pid_t pid = getpid();
     pdido.pid= pid;
-    clock_t start_time, end_time;
-    double time_taken;
-    start_time=clock();
-    pdido.initial_timestamp = (double)start_time/CLOCKS_PER_SEC*1000;
+    //clock_t start_time, end_time;
+    //double time_taken;
+    //start_time=clock();
+    struct timeval start_time, end_time;
+    long process_time; 
+    gettimeofday(&start_time, NULL);
+    pdido.initial_timestamp =  start_time;
     if (argc < 2)
     { // se o comando tiver errado (tem que ter pelo menos 2 argumentos para o status)
         _exit(EXIT_FAILURE);
@@ -97,8 +100,8 @@ int main(int argc, char *argv[])
                 PEDIDOSEXECUCAO* head = NULL;
                 p.pid = pdido.pid;
                 // o cliente informa o servidor do pedido a executar 
-                addNovoPedido(&head, pid,argv[3], (double)start_time/CLOCKS_PER_SEC*1000);
-                sprintf(buffer_pedido, "%d\n%s\n%ld\n", pdido.pid,argv[3],pdido.initial_timestamp); // guardamos no buffer o nome do programa
+                addNovoPedido(&head, pid,argv[3],start_time);
+                sprintf(buffer_pedido, "%d\n%s\n%ld\n", pdido.pid,argv[3],start_time.tv_sec*1000+start_time.tv_usec/1000); // guardamos no buffer o nome do programa
                 write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
                 char pid_string [30];
                 sprintf(pid_string,"Running PID %d\n",pdido.pid);
@@ -109,15 +112,19 @@ int main(int argc, char *argv[])
                 return 1;
                 }
            else { // se for pai
+               /* double sleep_time;
+                sleep_time = 2.0;
+                sleep(sleep_time);*/
                 int statuss;
                 waitpid(pid,&statuss,0);
-                end_time= clock();
-                time_taken = ((double)(end_time - start_time)) / CLOCKS_PER_SEC * 1000;
+                gettimeofday(&end_time, NULL);
+                process_time = (end_time.tv_sec - start_time.tv_sec) * 1000 + 
+                   (end_time.tv_usec - start_time.tv_usec) / 1000;
                 //o cliente informa o servidor do pedido executado
-                sprintf(buffer_pedido, "%d\n%.2f\n", pid,time_taken); // guardamos no buffer o nome do programa
+                sprintf(buffer_pedido, "%d\n%ld\n", pid,process_time); // guardamos no buffer o nome do programa
                 write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
                 char final_time[30];
-                sprintf(final_time,"Ended in %.2f ms\n", time_taken);
+                sprintf(final_time,"Ended in %ld ms\n", process_time);
                 //o cliente informa o utilizador via standard output, do tempo de execução (em milisegundos) utilizado pelo programa
                 write(STDOUT_FILENO,final_time,strlen(final_time));
         

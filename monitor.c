@@ -15,14 +15,7 @@
 //programa servidor com o qual o cliente deve interagir
 
 // retorna o tempo em segundos decorrido
-long getFinalTimeStamp(long initial_timestamp){
-    time_t current_time;
-    current_time=time(NULL);
-    long now = (long) current_time;
-    long before = initial_timestamp;
-    long final_time = now-before;
-    return final_time;
-}
+
 
 void status_log_file(PEDIDOSEXECUCAO *head){
     PEDIDOSEXECUCAO *atual=head;
@@ -31,8 +24,12 @@ void status_log_file(PEDIDOSEXECUCAO *head){
         perror("Erro ao abrir o arquivo de log");
         exit(EXIT_FAILURE);}
     while(atual!=NULL){
-        long tempodeexecucaoateaomomento= getFinalTimeStamp(atual->initial_timestamp);
-        fprintf(log_file, "%d %s %ld\n", atual->pid, atual->nome_programa, tempodeexecucaoateaomomento);
+        struct timeval start_time, end_time;
+        start_time = atual->initial_timestamp;
+        gettimeofday(&end_time, NULL);
+        long process_time = (end_time.tv_sec - start_time.tv_sec) * 1000 + 
+                   (end_time.tv_usec - start_time.tv_usec) / 1000;
+        fprintf(log_file, "%d %s %ld\n", atual->pid, atual->nome_programa, process_time);
         atual=atual->prox;
 
     }
