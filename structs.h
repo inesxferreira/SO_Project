@@ -14,4 +14,14 @@ typedef struct pedidos_execucao{
     struct pedidosexecucao *prox;
 }PEDIDOSEXECUCAO;
 
+typedef struct pedidos_em_espera{
+    char pedido[512];
+}PEDIDOSESPERA;
+
+
+
+
+
+
+
 
