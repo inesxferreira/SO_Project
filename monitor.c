@@ -66,10 +66,12 @@ struct timeval time_from_buffer(const char* buffer) {
 }
 
 void status_log_file(PEDIDOSEXECUCAO *head){
+    int log_file;
+    char log_content [512];
     PEDIDOSEXECUCAO *atual=head;
-    FILE* log_file = fopen(LOG_FILE, "a");
-    if (log_file == NULL) {
-        perror("Erro ao abrir o arquivo de log");
+    log_file = open(LOG_FILE,  O_WRONLY | O_CREAT | O_APPEND, 0644);
+   if (log_file == -1){
+        perror("Erro ao abrir o ficheiro de log");
         exit(EXIT_FAILURE);}
     while(atual!=NULL){
         struct timeval start_time, end_time;
@@ -77,12 +79,13 @@ void status_log_file(PEDIDOSEXECUCAO *head){
         gettimeofday(&end_time, NULL);
         long process_time = (end_time.tv_sec - start_time.tv_sec) * 1000 + 
                    (end_time.tv_usec - start_time.tv_usec) / 1000;
-        fprintf(log_file, "%d %s %ld\n", atual->pid, atual->nome_programa, process_time);
-        atual=atual->prox;
-
+        sprintf(log_content, "%d %s %ld\n", atual->pid, atual->nome_programa, process_time);
+        write(log_file, log_content, strlen(log_content));
+        atual = atual->prox;
     }
-    fclose(log_file);
+    close(log_file);
 }
+
 
 
 int main(int argc, char const *argv[]){
@@ -95,8 +98,10 @@ int main(int argc, char const *argv[]){
     mkfifo("/tmp/serverToClient",0666); // server -> client
     PEDIDOSEXECUCAO p;
     PEDIDOSEXECUCAO* head = NULL;
-    char* 
+    int i=1;
     
+    while (i){
+    printf("novo pedido");
     //abre o fifo para receber o pedido do cliente
     fd_clientToServer = open("/tmp/clientToServer", O_RDONLY);
     if (fd_clientToServer == -1){
@@ -112,6 +117,7 @@ int main(int argc, char const *argv[]){
     }
     //lê os comandos que vêm no fifo do client
     pid_t pid = fork();
+    printf("novo pedido");
     bytes_read = read(fd_clientToServer, buffer_pedido, sizeof(buffer_pedido));
     if(bytes_read == -1){
             perror("Erro ao ler o pedido do cliente");
@@ -149,7 +155,7 @@ int main(int argc, char const *argv[]){
             char buffer_resposta[] = "O servidor já guardou a informação fornecida";
             write(fd_serverToClient, buffer_resposta, sizeof(buffer_resposta));}
     _exit(EXIT_SUCCESS);  
-    } 
+    } }
 
     close(fd_clientToServer);
     close(fd_serverToClient);

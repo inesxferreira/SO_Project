@@ -88,8 +88,8 @@ int main(int argc, char const *argv[])
             // manda o pedido ao servidor
              write(fd_clientToServer, status, strlen(status));
         }
-        // recebe a resposta do servdor
-
+   
+    // recebe a resposta do servdor
     fd_serverToClient = open("/tmp/serverToClient", O_RDONLY);
     if (fd_serverToClient == -1)
         {
@@ -103,8 +103,6 @@ int main(int argc, char const *argv[])
             _exit(EXIT_FAILURE);
         }
     buffer_resposta[bytes_read] = '\0';
-    
-
     // fechar os fifos
     close(fd_clientToServer);
     close(fd_serverToClient);
