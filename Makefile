@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -Wall -g
 
-all: tracer monitor
+all: tracer monitor 
 
 tracer: tracer.o
 
@@ -12,4 +12,4 @@ monitor: monitor.o
 monitor.o: monitor.c
 
 clean:
-	rm -f *.o tracer monitor
+	rm -f *.o tracer monitor tmp/serverToclient tmp/clientToserver
