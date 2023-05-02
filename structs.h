@@ -1,5 +1,9 @@
 #include <sys/time.h> // in order to obtain the current time stamp
-//struct que define os dados de um novo pedido adicionado pelo user
+
+#define CLIENT_TO_SERVER "tmp/clientToserver"
+#define SERVER_TO_CLIENT "tmp/serverToclient"
+
+//struct que define um no
 typedef struct pedido
 {
     int pid;
@@ -8,16 +12,10 @@ typedef struct pedido
 
 // struct que guarda os pedidos em execução num dado momento
 typedef struct pedidos_execucao{
-    char nome_programa[512];
+    char *nome_programa;
     int pid;
     struct timeval initial_timestamp; // tempo inicial em segundos
-    struct pedidosexecucao *prox;
-}PEDIDOSEXECUCAO;
-
-typedef struct pedidos_em_espera{
-    char pedido[512];
-}PEDIDOSESPERA;
-
+} *PEDIDOSEXECUCAO;
 
 
 

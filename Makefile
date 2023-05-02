@@ -1,17 +1,15 @@
-all: server client
-server: bin/monitor
-client: bin/tracer
+CC = gcc
+CFLAGS = -Wall -g
 
-folders:
-@mkdir -p src obj bin tmp
+all: tracer monitor
 
-bin/monitor: obj/monitor.o
-	gcc -g obj/monitor.o -o bin/monitor
-obj/monitor.o: src/monitor.c
-	gcc -Wall -g -c src/monitor.c -o obj/monitor.o
-bin/tracer: obj/tracer.o
-	gcc -g obj/tracer.o -o bin/tracer
-obj/tracer.o: src/tracer.c
-	gcc -Wall -g -c src/tracer.c -o obj/tracer.o
+tracer: tracer.o
+
+tracer.o: tracer.c
+
+monitor: monitor.o
+
+monitor.o: monitor.c
+
 clean:
-	rm obj/* tmp/* bin/{tracer,monitor}
+	rm -f *.o tracer monitor

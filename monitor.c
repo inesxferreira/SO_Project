@@ -10,52 +10,27 @@
 #include "string.h"
 #include "time.h"
 #include <sys/time.h> // in order to obtain the current time stamp
-#define PIPE_NAME "fifo"
-#define LOG_FILE "status_log.txt"
+
+#define MAX 1024
+
 
 //programa servidor com o qual o cliente deve interagir
+PEDIDOSEXECUCAO array_processos_running[MAX];
+int num_processos_running=0;
+int fd_serverToClient;
 
+void remove_from_processos_running(int pid_a_remover){
+    int index_to_remove = 0;
+    for (int i = 0; i < num_processos_running; i++) {
+            if (array_processos_running[i]->pid == pid_a_remover ) {
+                index_to_remove = i;
+                for(int j=index_to_remove; j<num_processos_running-1;j++)
+                    array_processos_running[j]=array_processos_running[j+1];
+            }
+        }
+    num_processos_running--;
+    }
 
-void addNovoPedido(PEDIDOSEXECUCAO **head, int pid, char nome_programa[], struct timeval time_initial){
-    PEDIDOSEXECUCAO *add = (PEDIDOSEXECUCAO*)malloc(sizeof(PEDIDOSEXECUCAO));
-    add->pid=pid;
-    strcpy(add->nome_programa, nome_programa);
-    add->prox = NULL;
-    add->initial_timestamp=time_initial;
-    if(*head == NULL){
-        *head = add;
-        return;
-    }
-    PEDIDOSEXECUCAO*aux=*head;
-    while(aux->prox!=NULL){
-        aux=aux->prox;
-    }
-    aux->prox=add;
-}
-
-void removePedido(PEDIDOSEXECUCAO **head, int pid){
-    if (*head == NULL){
-        return;
-    }
-    //se o pedido a remover for a cabeça da lista, temos de fazer update da cabeça
-    if((*head)->pid == pid){
-        PEDIDOSEXECUCAO *aux = *head;
-        *head = (*head)->prox;
-        free(aux);
-        return;}
-    //caso contrário, temos de percorrer a struct até encontrar o elemento a ser removido
-    PEDIDOSEXECUCAO *atual=*head;
-    PEDIDOSEXECUCAO *ant=NULL;
-    while(atual!= NULL && atual->pid!=pid){
-        ant=atual;
-        atual=atual->prox;
-    }
-    //se o elemento for encontrado, removemo-lo da struct
-    if(atual!=NULL){
-        ant->prox=atual->prox;
-        free(atual);
-    }
-    }
 
 struct timeval time_from_buffer(const char* buffer) {
     long int seconds = strtol(buffer + 2, NULL, 10);
@@ -65,100 +40,72 @@ struct timeval time_from_buffer(const char* buffer) {
     return tv;
 }
 
-void status_log_file(PEDIDOSEXECUCAO *head){
-    int log_file;
-    char log_content [512];
-    PEDIDOSEXECUCAO *atual=head;
-    log_file = open(LOG_FILE,  O_WRONLY | O_CREAT | O_APPEND, 0644);
-   if (log_file == -1){
-        perror("Erro ao abrir o ficheiro de log");
-        exit(EXIT_FAILURE);}
-    while(atual!=NULL){
-        struct timeval start_time, end_time;
-        start_time = atual->initial_timestamp;
-        gettimeofday(&end_time, NULL);
-        long process_time = (end_time.tv_sec - start_time.tv_sec) * 1000 + 
-                   (end_time.tv_usec - start_time.tv_usec) / 1000;
-        sprintf(log_content, "%d %s %ld\n", atual->pid, atual->nome_programa, process_time);
-        write(log_file, log_content, strlen(log_content));
-        atual = atual->prox;
-    }
-    close(log_file);
-}
-
-
 
 int main(int argc, char const *argv[]){
     // criação dos fifos
+    mkfifo(CLIENT_TO_SERVER,0666);
+    mkfifo(SERVER_TO_CLIENT,0666);
     char buffer_pedido[512];
-    int fd_serverToClient;
+    memset(buffer_pedido, 0, sizeof(buffer_pedido));
+    char buffer_resposta[512];
+    memset(buffer_resposta, 0, sizeof(buffer_resposta));
     int fd_clientToServer;
     int bytes_read;
-    mkfifo("/tmp/clientToServer",0666); // client -> server
-    mkfifo("/tmp/serverToClient",0666); // server -> client
-    PEDIDOSEXECUCAO p;
-    PEDIDOSEXECUCAO* head = NULL;
-    int i=1;
-    
-    while (i){
-    printf("novo pedido");
-    //abre o fifo para receber o pedido do cliente
-    fd_clientToServer = open("/tmp/clientToServer", O_RDONLY);
-    if (fd_clientToServer == -1){
+    while(fd_clientToServer= open(CLIENT_TO_SERVER,O_RDONLY)){
+    fd_serverToClient = open(SERVER_TO_CLIENT, O_WRONLY);
+     if(fd_clientToServer == -1){
         perror("Erro ao abrir o pedido do cliente");
-        _exit(EXIT_FAILURE);
+         _exit(EXIT_FAILURE);
     }
-
-    //abre o fifo para enviar a resposta ao cliente
-    fd_serverToClient = open("/tmp/serverToClient", O_WRONLY);
-    if (fd_serverToClient == -1){
-        perror("Erro ao enviar a resposta ao cliente");
-        _exit(EXIT_FAILURE);
-    }
-    //lê os comandos que vêm no fifo do client
-    pid_t pid = fork();
-    printf("novo pedido");
     bytes_read = read(fd_clientToServer, buffer_pedido, sizeof(buffer_pedido));
     if(bytes_read == -1){
             perror("Erro ao ler o pedido do cliente");
             _exit(EXIT_FAILURE);
         }
-    if(pid == -1){
-        perror("Erro ao criar um  processo filho no servidor");
-        _exit(EXIT_FAILURE);
-    }
-    else  if (pid == 0){
-        if (strcmp(buffer_pedido,"status") == 0){
-                FILE *log_status= fopen(LOG_FILE, "r"); //abrimos o ficheiro log para leitura
-                if(log_status == NULL){
-                    perror("Erro ao abrir o ficheiro de log.");
-                    _exit(EXIT_FAILURE);
-                }
-                char log_buffer [512];
-                while(fgets(log_buffer,sizeof(log_buffer),log_status)!=NULL){
-                    write(fd_serverToClient,log_buffer,strlen(log_buffer));
-                }
-                fclose(log_status);}
-
-        else{
-            if (strstr(buffer_pedido,"Ended in")!= NULL){
-                int pid_a_remover= atoi(&buffer_pedido[0]);
-                removePedido(&head,pid_a_remover);
-            }
-            else{
-                int pid_a_adicionar= atoi(&buffer_pedido[0]);
-                char* nome_programa = &buffer_pedido[1];
-                struct timeval tempo = time_from_buffer(buffer_pedido);
-                addNovoPedido(&head,pid_a_adicionar,nome_programa,tempo);
-            }
-            buffer_pedido[bytes_read] ='\0';
-            char buffer_resposta[] = "O servidor já guardou a informação fornecida";
-            write(fd_serverToClient, buffer_resposta, sizeof(buffer_resposta));}
-    _exit(EXIT_SUCCESS);  
-    } }
-
     close(fd_clientToServer);
-    close(fd_serverToClient);
-    unlink("/tmp/clientToServer");
-    unlink("/tmp/serverToClient");
-    return 0;}
+    write(1,buffer_pedido,sizeof(buffer_pedido));
+    write(1,"finished\n",strlen("finished\n"));
+    if (strstr(buffer_pedido,"status")!= NULL){
+                write(1,"i am in status", strlen("i am in status"));
+                char sizess[2];
+                sprintf(sizess,"Runnig processes %d\n",num_processos_running);
+                write(1,sizess,strlen(sizess));
+                for (int i=0;i<num_processos_running;i++){
+                    write(1,"i am in in", strlen("i am in in"));
+                    int current_pid = array_processos_running[i]->pid;
+                    char* prog_name = array_processos_running[i]->nome_programa;
+                    write(1,prog_name,strlen(prog_name));
+                    struct timeval start_time, end_time;
+                    start_time = array_processos_running[i]->initial_timestamp;
+                    gettimeofday(&end_time, NULL);
+                    long process_time = (end_time.tv_sec - start_time.tv_sec) * 1000 + 
+                            (end_time.tv_usec - start_time.tv_usec) / 1000;
+                    sprintf(buffer_resposta,"%d %s %ld ms\n",current_pid,prog_name,process_time);
+                    write(1,buffer_resposta,sizeof(buffer_resposta));
+                    write(fd_serverToClient,buffer_resposta,sizeof(buffer_resposta));
+                    close(fd_serverToClient);
+        }
+                }
+    else if (strstr(buffer_pedido,"Ended in")!= NULL){
+                int pid_a_remover= atoi(&buffer_pedido[0]);
+                remove_from_processos_running(pid_a_remover);
+                char buffer_resposta[] = "O servidor já guardou a informação fornecida\n";
+                write(fd_serverToClient, buffer_resposta, sizeof(buffer_resposta));
+                close(fd_serverToClient);
+            }
+    else{
+                write(1,"i am in add", strlen("i am in add"));
+                PEDIDOSEXECUCAO p = malloc(sizeof(struct pedidos_execucao));
+                p->pid = atoi(&buffer_pedido[0]);
+                p->nome_programa = malloc(strlen(&buffer_pedido[1]) + 1); // +1 for null terminator
+                strcpy(p->nome_programa, &buffer_pedido[1]); // copy string to 
+                p->initial_timestamp = time_from_buffer(buffer_pedido);
+                array_processos_running[num_processos_running++]=p; 
+                char buffer_resposta[] = "O servidor já guardou a informação fornecida\n";
+                write(fd_serverToClient, buffer_resposta, sizeof(buffer_resposta));
+                close(fd_serverToClient);
+                }}
+    return 0;
+
+            }
+            
