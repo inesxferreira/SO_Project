@@ -12,10 +12,10 @@ typedef struct pedido
 
 // struct que guarda os pedidos em execução num dado momento
 typedef struct pedidos_execucao{
-    char *nome_programa;
+    char nome_programa[512];
     int pid;
     struct timeval initial_timestamp; // tempo inicial em segundos
-} *PEDIDOSEXECUCAO;
+} PEDIDOSEXECUCAO;
 
 
 

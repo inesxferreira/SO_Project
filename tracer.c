@@ -34,6 +34,7 @@ int main(int argc, char const *argv[])
     long process_time; 
     gettimeofday(&start_time, NULL);
     pdido.initial_timestamp =  start_time;
+    
     if (argc < 2)
     { // se o comando tiver errado (tem que ter pelo menos 2 argumentos para o status)
         _exit(EXIT_FAILURE);
@@ -56,7 +57,7 @@ int main(int argc, char const *argv[])
                     perror("Erro ao abrir o fifo do cliente");
                     _exit(EXIT_FAILURE);
                 }
-                sprintf(buffer_pedido, "%d %s %ld ms\n", pdido.pid,argv[3],start_time.tv_sec*1000+start_time.tv_usec/1000); // guardamos no buffer o nome do programa
+                sprintf(buffer_pedido, "Add %d %s %ld ms\n", pdido.pid,argv[3],start_time.tv_sec*1000+start_time.tv_usec/1000); // guardamos no buffer o nome do programa
                 //o cliente envia para o servidor a info do pedido a executar
                 write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
                 
@@ -80,14 +81,16 @@ int main(int argc, char const *argv[])
                 while((bytes_read = read(fd_serverToClient,buffer,1024))>0){
                 int flag=1;
                 while(flag){
-                    if(strcmp(buffer,"O servidor já guardou a informação fornecida\n") == 0){
+                    if(strcmp(buffer,"O servidor já adicionou a informação fornecida\n") == 0){
                         flag=0;
                     }  
                 }
+                }
                 close(fd_serverToClient);
-                }}
+                return 0;}
+           
            else { // se for pai
-                sleep(50);
+                sleep(20);
                 fd_clientToServer = open(CLIENT_TO_SERVER, O_WRONLY);
                 if (fd_clientToServer == -1)
                 { // não conseguiu abrir
@@ -119,13 +122,13 @@ int main(int argc, char const *argv[])
                 while((bytes_read = read(fd_serverToClient,buffer,1024))>0){
                 int flag=1;
                 while(flag){
-                    if(strcmp(buffer,"O servidor já guardou a informação fornecida\n") == 0){
+                    if(strcmp(buffer,"O servidor já removeu a informação fornecida\n") == 0){
                         flag=0;
                     }  
+               }
                 }
                 close(fd_serverToClient);
-                return 0;
-                }}
+                return 0;}
             
         }}
     else if (strcmp(argv[1], "status") == 0){
@@ -150,7 +153,6 @@ int main(int argc, char const *argv[])
                     }  
                 close(fd_serverToClient);
                 return 0;
-
         }
 
     return 0;
