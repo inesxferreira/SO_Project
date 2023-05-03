@@ -1,7 +1,6 @@
 #include <sys/time.h> // in order to obtain the current time stamp
 
 #define CLIENT_TO_SERVER "tmp/clientToserver"
-#define SERVER_TO_CLIENT "tmp/serverToclient"
 
 //struct que define um no
 typedef struct pedido

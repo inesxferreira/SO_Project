@@ -12,4 +12,4 @@ monitor: monitor.o
 monitor.o: monitor.c
 
 clean:
-	rm -f *.o tracer monitor tmp/serverToclient tmp/clientToserver
+	rm -f *.o tracer monitor tmp/*
