@@ -59,6 +59,13 @@ int main(int argc, char const *argv[])
                 token = strtok(NULL, " ");
             }
             args[i] = NULL;
+
+            char command[512];
+            strcpy(command, args[0]);  
+            for (int i = 1; args[i] != NULL; i++) {
+                strcat(command, " ");  
+                strcat(command, args[i]);  }
+
             if ((pid = fork()) == 0)
             {
                 char buffer_pedido[512];
@@ -70,8 +77,7 @@ int main(int argc, char const *argv[])
                     perror("Erro ao abrir o fifo do cliente");
                     _exit(EXIT_FAILURE);
                 }
-
-                sprintf(buffer_pedido, "Add;%d;%s;%ld;\n", pdido.pid, args[0], start_time.tv_sec * 1000 + start_time.tv_usec / 1000); // guardamos no buffer o nome do programa
+                sprintf(buffer_pedido, "Add;%d;%s;%ld;\n", pdido.pid, command, start_time.tv_sec * 1000 + start_time.tv_usec / 1000); // guardamos no buffer o nome do programa
                 // o cliente envia para o servidor a info do pedido a executar
                 write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
 
@@ -79,7 +85,7 @@ int main(int argc, char const *argv[])
                 char pid_string[30];
                 sprintf(pid_string, "Running PID %d\n", pdido.pid);
                 write(STDOUT_FILENO, pid_string, strlen(pid_string));
-                sleep(20);
+                //sleep(20);
                 // o cliente executa o programa
                 execvp(args[0], args);
                 close(fd_clientToServer);
@@ -90,7 +96,7 @@ int main(int argc, char const *argv[])
             { // se for pai
                 char buffer_pedido[512];
                 memset(buffer_pedido, 0, sizeof(buffer_pedido));
-                // sleep(20);
+                sleep(20);
                 fd_clientToServer = open(CLIENT_TO_SERVER, O_WRONLY);
                 if (fd_clientToServer == -1)
                 { // não conseguiu abrir
@@ -212,8 +218,10 @@ int main(int argc, char const *argv[])
                 wait(NULL);
             }
         }
-
-        else if (strcmp(argv[1], "status") == 0)
+        
+        return 0;
+    }
+    else if (strcmp(argv[1], "status") == 0)
         {
             char buffer_pedido[512];
             memset(buffer_pedido, 0, sizeof(buffer_pedido));
@@ -250,6 +258,4 @@ int main(int argc, char const *argv[])
             return 0;
         }
 
-        return 0;
-    }
 }

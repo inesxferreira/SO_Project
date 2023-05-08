@@ -89,10 +89,11 @@ int main(int argc, char const *argv[])
                 write(1, "\nin of status\n", strlen("\nin of status\n"));
                 int current_pid = array_processos_running[i]->pid;
                 char *prog_name = array_processos_running[i]->nome_programa;
-                struct timeval start_time, end_time;
+                struct timeval end_time;
+                long start_time;
                 start_time = array_processos_running[i]->initial_timestamp;
                 gettimeofday(&end_time, NULL);
-                long process_time = (end_time.tv_sec * 1000 + end_time.tv_usec / 1000) - (start_time.tv_sec * 1000 + start_time.tv_usec / 1000);
+                long process_time = (end_time.tv_sec * 1000 + end_time.tv_usec / 1000) - start_time;
                 snprintf(buffer_resposta, sizeof(buffer_resposta), "%d %s %ld ms\n", current_pid, prog_name, process_time);
                 write(fd_serverToClient, buffer_resposta, sizeof(buffer_resposta));
                 close(fd_serverToClient);
@@ -121,7 +122,9 @@ int main(int argc, char const *argv[])
             token = strtok(NULL, ";"); // é o tempo
             if (token != NULL)
             {
-                p->initial_timestamp = time_from_buffer(token);
+                char* endptr;
+                long tempo_inicial = strtol(token,&endptr,10);
+                p->initial_timestamp = tempo_inicial;
             }
             array_processos_running[num_processos_running] = p;
             num_processos_running = num_processos_running + 1;

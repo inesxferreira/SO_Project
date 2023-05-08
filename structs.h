@@ -13,7 +13,7 @@ typedef struct pedido
 typedef struct pedidos_execucao{
     char nome_programa[512];
     int pid;
-    struct timeval initial_timestamp; // tempo inicial em segundos
+    long initial_timestamp; // tempo inicial em segundos
 } PEDIDOSEXECUCAO;
 
 
