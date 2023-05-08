@@ -147,11 +147,11 @@ int main(int argc, char const *argv[])
         args[p] = NULL;
         char *args1[256];
         int i = 0;
-        char *token = strtok(argv[3], " ");
-        while (token != NULL)
+        char *token2 = strtok(argv[3], " ");
+        while (token2 != NULL)
         {
-            args1[i++] = token;
-            token = strtok(NULL, " ");
+            args1[i++] = token2;
+            token2 = strtok(NULL, " ");
         }
         args1[i] = NULL;
 
