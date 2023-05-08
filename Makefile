@@ -1,7 +1,13 @@
 CC = gcc
 CFLAGS = -Wall -g
 
-all: tracer monitor 
+all: tmp log tracer monitor 
+
+tmp: 
+	mkdir -p tmp
+
+log: 
+	mkdir -p log
 
 tracer: tracer.o
 
@@ -12,4 +18,5 @@ monitor: monitor.o
 monitor.o: monitor.c
 
 clean:
-	rm -f *.o tracer monitor tmp/*
+	rm -f *.o tracer monitor
+	rm -rf tmp log
