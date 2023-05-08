@@ -121,105 +121,132 @@ int main(int argc, char const *argv[])
                 return 0;
             }
         }
-        if (strcmp(argv[2], "p") == 0)
+        if (strcmp(argv[2], "-p") == 0)
+    {
+
+        char *token = strtok(argv[3], "|");
+        int p = 0;
+        char *args[256];
+
+        while (token != NULL)
         {
-            printf("1%d");
-            char *token = strtok(argv[3], "|");
-            int p = 0;
-            char *args[256];
-            while (token != NULL)
+            while (isspace((unsigned char)*token))
             {
-                // Remove espaços em branco do início da substring
-                while (isspace((unsigned char)*token))
-                {
-                    token++;
-                }
-                // Divide a substring em espaços em branco para obter o primeiro argumento
-                char *arg = strtok(token, " ");
-                args[p++] = arg;
-                // Obtém a próxima substring separada por '|'
-                token = strtok(NULL, "|");
+                token++;
             }
-            args[p] = NULL;
-            int pipo[p - 1][2];
-            for (size_t i = 0; i < p; i++)
+            // Encontra o primeiro espaço em branco após o primeiro argumento
+            char *end_arg = strchr(token, ' ');
+            if (end_arg != NULL)
             {
-                if (i == 0)
-                {
-                    pipe(pipo[0]);
+                *end_arg = '\0';
+            }
+            args[p++] = token;
+            // Obtém a próxima substring separada por '|'
+            token = strtok(NULL, "|");
+        }
+        args[p] = NULL;
+        char *args1[256];
+        int i = 0;
+        char *token = strtok(argv[3], " ");
+        while (token != NULL)
+        {
+            args1[i++] = token;
+            token = strtok(NULL, " ");
+        }
+        args1[i] = NULL;
 
-                    if (fork == 0)
-                    {                        // preparar ambiente para o programa ser executado
-                        dup2(pipo[0][1], 1); // processo filho redireciona a saída padrão para o lado de escrita do pipe,
-                        close(pipo[0][0]);
-                        close(pipo[0][1]);
+        char command[512];
+        strcpy(command, args1[0]);
+        for (int i = 1; args1[i] != NULL; i++)
+        {
+            strcat(command, " ");
+            strcat(command, args1[i]);
+        }
 
-                        // igual a "u"
-                        sprintf(buffer_pedido, "Add;%d;%s;%ld;\n", pdido.pid, args[i], start_time.tv_sec * 1000 + start_time.tv_usec / 1000); // guardamos no buffer o nome do programa
-                        // o cliente envia para o servidor a info do pedido a executar
-                        write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
+        printf("Argumentos:\n");
+        for (int i = 0; args1[i] != NULL; i++)
+        {
+            printf("%s\n", args[i]);
+        }
+        int pipo[p - 1][2];
+        for (size_t i = 0; i < p; i++)
+        {
+            if (i == 0)
+            {
+                pipe(pipo[0]);
 
-                        // o cliente informa o utilizador via standard output do pedido a executar
-                        char pid_string[30];
-                        sprintf(pid_string, "Running PID %d\n", pdido.pid);
-                        write(STDOUT_FILENO, pid_string, strlen(pid_string));
-                        sleep(20);
-                        // o cliente executa o programa
-                        execvp(args[i], args);
-                        close(fd_clientToServer);
-                        perror("Exec failed");
-                        _exit(1);
-                    }
+                if (fork == 0)
+                {                        // preparar ambiente para o programa ser executado
+                    dup2(pipo[0][1], 1); // processo filho redireciona a saída padrão para o lado de escrita do pipe,
+                    close(pipo[0][0]);
                     close(pipo[0][1]);
+
+                    // igual a "u"
+                    sprintf(buffer_pedido, "Add;%d;%s;%ld;\n", pdido.pid, args[i], start_time.tv_sec * 1000 + start_time.tv_usec / 1000); // guardamos no buffer o nome do programa
+                    // o cliente envia para o servidor a info do pedido a executar
+                    write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
+
+                    // o cliente informa o utilizador via standard output do pedido a executar
+                    char pid_string[30];
+                    sprintf(pid_string, "Running PID %d\n", pdido.pid);
+                    write(STDOUT_FILENO, pid_string, strlen(pid_string));
+                    sleep(20);
+                    // o cliente executa o programa
+                    execvp(args[i], args);
+                    close(fd_clientToServer);
+                    perror("Exec failed");
+                    _exit(1);
                 }
-                else if (i < p - 1)
-                {
-
-                    pipe(pipo[i]);
-                    if (fork() == 0)
-                    {
-                        // Redireciona a entrada padrão do processo filho para a
-                        //  extremidade de leitura do pipe da etapa anterior.
-                        dup2(pipo[i - 1][0], 0);
-                        // o de escrita anterior está fechado
-                        close(pipo[i - 1][0]);
-
-                        dup2(pipo[i][1], 1);
-                        close(pipo[i][0]);
-                        close(pipo[i][1]);
-
-                        execvp(args[i], args);
-
-                        perror("Exec failed");
-                        _exit(1);
-                    }
-                    close(pipo[i - 1][0]);
-                    close(pipo[i][1]);
-                }
-                else
-                {
-                    if (fork() == 0)
-                    {
-
-                        dup2(pipo[i - 1][0], 0);
-                        close(pipo[i - 1][1]);
-                        close(pipo[i - 1][0]);
-
-                        execvp(args[i], args);
-
-                        perror("Exec failed");
-                        _exit(1);
-                    }
-                    close(pipo[i - 1][0]);
-                }
+                close(pipo[0][1]);
             }
-            for (size_t i = 0; i < p; ++i)
+            else if (i < p - 1)
             {
-                wait(NULL);
+
+                pipe(pipo[i]);
+                if (fork() == 0)
+                {
+                    // Redireciona a entrada padrão do processo filho para a
+                    //  extremidade de leitura do pipe da etapa anterior.
+                    dup2(pipo[i - 1][0], 0);
+                    // o de escrita anterior está fechado
+                    close(pipo[i - 1][0]);
+
+                    dup2(pipo[i][1], 1);
+                    close(pipo[i][0]);
+                    close(pipo[i][1]);
+
+                    // enviar programa para monitor
+                    execvp(args[i], args);
+
+                    perror("Exec failed");
+                    _exit(1);
+                }
+                close(pipo[i - 1][0]);
+                close(pipo[i][1]);
+            }
+            else
+            {
+                if (fork() == 0)
+                {
+
+                    dup2(pipo[i - 1][0], 0);
+                    close(pipo[i - 1][1]);
+                    close(pipo[i - 1][0]);
+
+                    // enviar programa para monitor
+                    execvp(args[i], args);
+
+                    perror("Exec failed");
+                    _exit(1);
+                }
+                close(pipo[i - 1][0]);
             }
         }
-        
-        return 0;
+        for (size_t i = 0; i < p; ++i)
+        {
+            wait(NULL);
+        }
+    }
     }
     else if (strcmp(argv[1], "status") == 0)
         {
