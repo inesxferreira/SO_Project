@@ -87,6 +87,8 @@ int main(int argc, char const *argv[])
             {
                 if (array_processos_running[i]->pid != 0){
                 char line_status[50];
+                for (int i = 0; i < sizeof(line_status); i++) {
+                line_status[i] = 0;}
                 memset(line_status, 0, sizeof(line_status));
                 int current_pid = array_processos_running[i]->pid;
                 char *prog_name = array_processos_running[i]->nome_programa;
@@ -96,11 +98,16 @@ int main(int argc, char const *argv[])
                 gettimeofday(&end_time, NULL);
                 long process_time = (end_time.tv_sec * 1000 + end_time.tv_usec / 1000) - start_time;
                 snprintf(line_status, sizeof(line_status), "%d %s %ld ms\n", current_pid, prog_name, process_time);
-                strcat(buffer_resposta,line_status);}
+                strcat(buffer_resposta,line_status);
+                }
             }
+
                 write(fd_serverToClient, buffer_resposta, sizeof(buffer_resposta));
                 close(fd_serverToClient);
                 write(1, "\nout of status\n", strlen("\nout of status\n"));
+                for (int i = 0; i < sizeof(buffer_resposta); i++) {
+                    buffer_resposta[i] = 0;
+    }
             
         }
 
