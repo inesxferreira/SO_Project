@@ -174,8 +174,8 @@ int main(int argc, char const *argv[])
             }
             char *log_file_pid_name = malloc(10);
             sprintf(log_file_pid_name, "%s/%d.txt",log_file_path, pid_a_remover);
-            FILE *log_file = fopen(log_file_pid_name,"w");
-            if (log_file == NULL){
+            int log_fd = open(log_file_pid_name,O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
+            if (log_fd == -1){
                 return 1;
             }
             struct timeval end_time;
@@ -186,9 +186,9 @@ int main(int argc, char const *argv[])
             gettimeofday(&end_time, NULL);
             long process_time = (end_time.tv_sec * 1000 + end_time.tv_usec / 1000) - start_time;
             snprintf(buffer_log, sizeof(buffer_log), "%d %s %ld ms\n", pid_a_remover, nome_programa_fin, process_time);
-            fprintf(log_file, "%s",buffer_log);
+            write(log_fd, buffer_log, strlen(buffer_log));
             write(1, "\nremoved\n", strlen("\nremoved\n"));
-            fclose(log_file);
+            close(log_fd);
         }
     }
     return 0;
