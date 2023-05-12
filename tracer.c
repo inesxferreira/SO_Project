@@ -60,12 +60,6 @@ int main(int argc, char const *argv[])
             }
             args[i] = NULL;
 
-            char command[512];
-            strcpy(command, args[0]);  
-            for (int i = 1; args[i] != NULL; i++) {
-                strcat(command, " ");  
-                strcat(command, args[i]);  }
-
             if ((pid = fork()) == 0)
             {
                 char buffer_pedido[512];
@@ -77,7 +71,7 @@ int main(int argc, char const *argv[])
                     perror("Erro ao abrir o fifo do cliente");
                     _exit(EXIT_FAILURE);
                 }
-                sprintf(buffer_pedido, "Add;%d;%s;%ld;\n", pdido.pid, command, start_time.tv_sec * 1000 + start_time.tv_usec / 1000); // guardamos no buffer o nome do programa
+                sprintf(buffer_pedido, "Add;%d;%s;%ld;\n", pdido.pid, args[0], start_time.tv_sec * 1000 + start_time.tv_usec / 1000); // guardamos no buffer o nome do programa
                 // o cliente envia para o servidor a info do pedido a executar
                 write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
 
@@ -85,7 +79,6 @@ int main(int argc, char const *argv[])
                 char pid_string[30];
                 sprintf(pid_string, "Running PID %d\n", pdido.pid);
                 write(STDOUT_FILENO, pid_string, strlen(pid_string));
-                //sleep(20);
                 // o cliente executa o programa
                 execvp(args[0], args);
                 close(fd_clientToServer);
@@ -122,167 +115,166 @@ int main(int argc, char const *argv[])
             }
         }
         if (strcmp(argv[2], "-p") == 0)
-    {
-
-        char *token = strtok(argv[3], "|");
-        int p = 0;
-        char *args[256];
-
-        while (token != NULL)
         {
-            while (isspace((unsigned char)*token))
+
+            char *token = strtok(argv[3], "|");
+            int p = 0;
+            char *args[256];
+
+            while (token != NULL)
             {
-                token++;
+                while (isspace((unsigned char)*token))
+                {
+                    token++;
+                }
+                // Encontra o primeiro espaço em branco após o primeiro argumento
+                char *end_arg = strchr(token, ' ');
+                if (end_arg != NULL)
+                {
+                    *end_arg = '\0';
+                }
+                args[p++] = token;
+                // Obtém a próxima substring separada por '|'
+                token = strtok(NULL, "|");
             }
-            // Encontra o primeiro espaço em branco após o primeiro argumento
-            char *end_arg = strchr(token, ' ');
-            if (end_arg != NULL)
+            args[p] = NULL;
+            char *args1[256];
+            int i = 0;
+            char *token2 = strtok(argv[3], " ");
+            while (token2 != NULL)
             {
-                *end_arg = '\0';
+                args1[i++] = token2;
+                token2 = strtok(NULL, " ");
             }
-            args[p++] = token;
-            // Obtém a próxima substring separada por '|'
-            token = strtok(NULL, "|");
-        }
-        args[p] = NULL;
-        char *args1[256];
-        int i = 0;
-        char *token2 = strtok(argv[3], " ");
-        while (token2 != NULL)
-        {
-            args1[i++] = token2;
-            token2 = strtok(NULL, " ");
-        }
-        args1[i] = NULL;
+            args1[i] = NULL;
 
-        char command[512];
-        strcpy(command, args1[0]);
-        for (int i = 1; args1[i] != NULL; i++)
-        {
-            strcat(command, " ");
-            strcat(command, args1[i]);
-        }
-
-        printf("Argumentos:\n");
-        for (int i = 0; args1[i] != NULL; i++)
-        {
-            printf("%s\n", args[i]);
-        }
-        int pipo[p - 1][2];
-        for (size_t i = 0; i < p; i++)
-        {
-            if (i == 0)
+            char command[512];
+            strcpy(command, args1[0]);
+            for (int i = 1; args1[i] != NULL; i++)
             {
-                pipe(pipo[0]);
+                strcat(command, " ");
+                strcat(command, args1[i]);
+            }
 
-                if (fork == 0)
-                {                        // preparar ambiente para o programa ser executado
-                    dup2(pipo[0][1], 1); // processo filho redireciona a saída padrão para o lado de escrita do pipe,
-                    close(pipo[0][0]);
+            printf("Argumentos:\n");
+            for (int i = 0; args1[i] != NULL; i++)
+            {
+                printf("%s\n", args[i]);
+            }
+            int pipo[p - 1][2];
+            for (size_t i = 0; i < p; i++)
+            {
+                if (i == 0)
+                {
+                    pipe(pipo[0]);
+
+                    if (fork == 0)
+                    {                        // preparar ambiente para o programa ser executado
+                        dup2(pipo[0][1], 1); // processo filho redireciona a saída padrão para o lado de escrita do pipe,
+                        close(pipo[0][0]);
+                        close(pipo[0][1]);
+
+                        // igual a "u"
+                        sprintf(buffer_pedido, "Add;%d;%s;%ld;\n", pdido.pid, args[i], start_time.tv_sec * 1000 + start_time.tv_usec / 1000); // guardamos no buffer o nome do programa
+                        // o cliente envia para o servidor a info do pedido a executar
+                        write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
+
+                        // o cliente informa o utilizador via standard output do pedido a executar
+                        char pid_string[30];
+                        sprintf(pid_string, "Running PID %d\n", pdido.pid);
+                        write(STDOUT_FILENO, pid_string, strlen(pid_string));
+                        sleep(20);
+                        // o cliente executa o programa
+                        execvp(args[i], args);
+                        close(fd_clientToServer);
+                        perror("Exec failed");
+                        _exit(1);
+                    }
                     close(pipo[0][1]);
-
-                    // igual a "u"
-                    sprintf(buffer_pedido, "Add;%d;%s;%ld;\n", pdido.pid, args[i], start_time.tv_sec * 1000 + start_time.tv_usec / 1000); // guardamos no buffer o nome do programa
-                    // o cliente envia para o servidor a info do pedido a executar
-                    write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
-
-                    // o cliente informa o utilizador via standard output do pedido a executar
-                    char pid_string[30];
-                    sprintf(pid_string, "Running PID %d\n", pdido.pid);
-                    write(STDOUT_FILENO, pid_string, strlen(pid_string));
-                    sleep(20);
-                    // o cliente executa o programa
-                    execvp(args[i], args);
-                    close(fd_clientToServer);
-                    perror("Exec failed");
-                    _exit(1);
                 }
-                close(pipo[0][1]);
-            }
-            else if (i < p - 1)
-            {
-
-                pipe(pipo[i]);
-                if (fork() == 0)
+                else if (i < p - 1)
                 {
-                    // Redireciona a entrada padrão do processo filho para a
-                    //  extremidade de leitura do pipe da etapa anterior.
-                    dup2(pipo[i - 1][0], 0);
-                    // o de escrita anterior está fechado
-                    close(pipo[i - 1][0]);
 
-                    dup2(pipo[i][1], 1);
-                    close(pipo[i][0]);
+                    pipe(pipo[i]);
+                    if (fork() == 0)
+                    {
+                        // Redireciona a entrada padrão do processo filho para a
+                        //  extremidade de leitura do pipe da etapa anterior.
+                        dup2(pipo[i - 1][0], 0);
+                        // o de escrita anterior está fechado
+                        close(pipo[i - 1][0]);
+
+                        dup2(pipo[i][1], 1);
+                        close(pipo[i][0]);
+                        close(pipo[i][1]);
+
+                        // enviar programa para monitor
+                        execvp(args[i], args);
+
+                        perror("Exec failed");
+                        _exit(1);
+                    }
+                    close(pipo[i - 1][0]);
                     close(pipo[i][1]);
-
-                    // enviar programa para monitor
-                    execvp(args[i], args);
-
-                    perror("Exec failed");
-                    _exit(1);
                 }
-                close(pipo[i - 1][0]);
-                close(pipo[i][1]);
-            }
-            else
-            {
-                if (fork() == 0)
+                else
                 {
+                    if (fork() == 0)
+                    {
 
-                    dup2(pipo[i - 1][0], 0);
-                    close(pipo[i - 1][1]);
+                        dup2(pipo[i - 1][0], 0);
+                        close(pipo[i - 1][1]);
+                        close(pipo[i - 1][0]);
+
+                        // enviar programa para monitor
+                        execvp(args[i], args);
+
+                        perror("Exec failed");
+                        _exit(1);
+                    }
                     close(pipo[i - 1][0]);
-
-                    // enviar programa para monitor
-                    execvp(args[i], args);
-
-                    perror("Exec failed");
-                    _exit(1);
                 }
-                close(pipo[i - 1][0]);
+            }
+            for (size_t i = 0; i < p; ++i)
+            {
+                wait(NULL);
             }
         }
-        for (size_t i = 0; i < p; ++i)
-        {
-            wait(NULL);
-        }
-    }
     }
     else if (strcmp(argv[1], "status") == 0)
+    {
+        char buffer_pedido[512];
+        memset(buffer_pedido, 0, sizeof(buffer_pedido));
+        fd_clientToServer = open(CLIENT_TO_SERVER, O_WRONLY);
+        if (fd_clientToServer == -1)
+        { // não conseguiu abrir
+            perror("Erro ao abrir o fifo do cliente");
+            _exit(EXIT_FAILURE);
+        }
+        sprintf(buffer_pedido, "%s status\n", pipe_name);
+        write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
+        close(fd_clientToServer);
+        fd_serverToClient = open(pipe_name, O_RDONLY);
+        if (fd_serverToClient == -1)
         {
-            char buffer_pedido[512];
-            memset(buffer_pedido, 0, sizeof(buffer_pedido));
-            fd_clientToServer = open(CLIENT_TO_SERVER, O_WRONLY);
-            if (fd_clientToServer == -1)
-            { // não conseguiu abrir
-                perror("Erro ao abrir o fifo do cliente");
-                _exit(EXIT_FAILURE);
-            }
-            sprintf(buffer_pedido, "%s status\n", pipe_name);
-            write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
-            close(fd_clientToServer);
-            fd_serverToClient = open(pipe_name, O_RDONLY);
-            if (fd_serverToClient == -1)
+            // não conseguiu abrir
+            perror("Erro ao abrir a resposta do servidor (1)");
+            _exit(EXIT_FAILURE);
+        }
+        int bytes_read = 0;
+        char b;
+        char *buffer = malloc(SIZE_OF_BUFFER * sizeof(char));
+        int size_bytes_read = 0;
+        while (bytes_read = read(fd_serverToClient, &b, 1) && size_bytes_read < SIZE_OF_BUFFER - 1)
+        {
+            if (b != '\0')
             {
-                // não conseguiu abrir
-                perror("Erro ao abrir a resposta do servidor (1)");
-                _exit(EXIT_FAILURE);
+                buffer[size_bytes_read++] = b;
             }
-            int bytes_read = 0;
-            char b;
-            char *buffer = malloc(SIZE_OF_BUFFER * sizeof(char));
-            int size_bytes_read = 0;
-            while (bytes_read = read(fd_serverToClient, &b, 1) && size_bytes_read < SIZE_OF_BUFFER - 1)
-            {
-                if (b != '\0')
-                {
-                    buffer[size_bytes_read++] = b;
-                }
-            }
-
-            write(1, buffer, size_bytes_read);
-            close(fd_serverToClient);
-            return 0;
         }
 
+        write(1, buffer, size_bytes_read);
+        close(fd_serverToClient);
+        return 0;
+    }
 }

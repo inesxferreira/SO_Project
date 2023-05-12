@@ -17,6 +17,9 @@
 PEDIDOSEXECUCAO *array_processos_running[MAX];
 int num_processos_running = 0;
 
+PEDIDOSEXECUCAO *array_processos_finished[MAX];
+int num_processos_finished = 0;
+
 void remove_from_processos_running(int pid_a_remover)
 {
     int index_to_remove = 0;
@@ -32,16 +35,13 @@ void remove_from_processos_running(int pid_a_remover)
     num_processos_running--;
 }
 
-char * showStatus(){
-
+char *showStatus()
+{
 }
 
 int main(int argc, char const *argv[])
 {
     char *log_file_path = malloc(10);
-    if (argc == 2) {
-       log_file_path = argv[1];
-    }
     // criação dos fifos
     mkfifo(CLIENT_TO_SERVER, 0666);
     char buffer_pedido[512];
@@ -79,39 +79,43 @@ int main(int argc, char const *argv[])
             char *pipe_name = malloc(10);
             sprintf(pipe_name, token, strlen(token));
             fd_serverToClient = open(pipe_name, O_WRONLY);
-            if (num_processos_running == 0){
-                write(fd_serverToClient,"Não há processos a correr\n",strlen("Não há processos a correr\n"));
+            if (num_processos_running == 0)
+            {
+                write(fd_serverToClient, "Não há processos a correr\n", strlen("Não há processos a correr\n"));
             }
             write(1, "\nin of status\n", strlen("\nin of status\n"));
             for (int i = 0; i < num_processos_running; i++)
             {
-                if (array_processos_running[i]->pid != 0){
-                char line_status[50];
-                for (int i = 0; i < sizeof(line_status); i++) {
-                line_status[i] = 0;}
-                memset(line_status, 0, sizeof(line_status));
-                int current_pid = array_processos_running[i]->pid;
-                char *prog_name = array_processos_running[i]->nome_programa;
-                struct timeval end_time;
-                long start_time;
-                start_time = array_processos_running[i]->initial_timestamp;
-                gettimeofday(&end_time, NULL);
-                long process_time = (end_time.tv_sec * 1000 + end_time.tv_usec / 1000) - start_time;
-                snprintf(line_status, sizeof(line_status), "%d %s %ld ms\n", current_pid, prog_name, process_time);
-                strcat(buffer_resposta,line_status);
+                if (array_processos_running[i]->pid != 0)
+                {
+                    char line_status[50];
+                    for (int i = 0; i < sizeof(line_status); i++)
+                    {
+                        line_status[i] = 0;
+                    }
+                    memset(line_status, 0, sizeof(line_status));
+                    int current_pid = array_processos_running[i]->pid;
+                    char *prog_name = array_processos_running[i]->nome_programa;
+                    struct timeval end_time;
+                    long start_time;
+                    start_time = array_processos_running[i]->initial_timestamp;
+                    gettimeofday(&end_time, NULL);
+                    long process_time = (end_time.tv_sec * 1000 + end_time.tv_usec / 1000) - start_time;
+                    snprintf(line_status, sizeof(line_status), "%d %s %ld ms\n", current_pid, prog_name, process_time);
+                    strcat(buffer_resposta, line_status);
                 }
             }
 
-                write(fd_serverToClient, buffer_resposta, sizeof(buffer_resposta));
-                close(fd_serverToClient);
-                write(1, "\nout of status\n", strlen("\nout of status\n"));
-                for (int i = 0; i < sizeof(buffer_resposta); i++) {
-                    buffer_resposta[i] = 0;
-    }
-            
+            write(fd_serverToClient, buffer_resposta, sizeof(buffer_resposta));
+            close(fd_serverToClient);
+            write(1, "\nout of status\n", strlen("\nout of status\n"));
+            for (int i = 0; i < sizeof(buffer_resposta); i++)
+            {
+                buffer_resposta[i] = 0;
+            }
         }
 
-        if (strstr(buffer_pedido, "Add") != NULL)
+        if (strstr(buffer_pedido, "Add") != NULL) // se um novo pedido chegar
         {
             write(1, "entrou added\n", strlen("entrou added\n"));
             int fd_serverToClient;
@@ -132,19 +136,19 @@ int main(int argc, char const *argv[])
             token = strtok(NULL, ";"); // é o tempo
             if (token != NULL)
             {
-                char* endptr;
-                long tempo_inicial = strtol(token,&endptr,10);
+                char *endptr;
+                long tempo_inicial = strtol(token, &endptr, 10);
                 p->initial_timestamp = tempo_inicial;
             }
-            array_processos_running[num_processos_running] = p;
-            num_processos_running = num_processos_running + 1;
+            array_processos_running[num_processos_running] = p; // adicionamos o pedido à lista dos pedidos em execução
+            num_processos_running = num_processos_running + 1;  // incrementamos o número de pedidos em execução
             write(1, "added\n", strlen("added\n"));
         }
-        if (strstr(buffer_pedido, "Ended in") != NULL)
+        if (strstr(buffer_pedido, "Ended in") != NULL) // se o cliente informar que terminou um pedido
         {
             write(1, "entrou removed\n", strlen("entrou removed\n"));
             char *token = strtok(buffer_pedido, " "); // é o pid
-            char nome_programa_fin [512];
+            char nome_programa_fin[512];
             long tempo_inicial_programa_fin;
             int pid_a_remover = 0;
             int index_to_remove = -1;
@@ -156,10 +160,10 @@ int main(int argc, char const *argv[])
             {
                 if (array_processos_running[i]->pid == pid_a_remover)
                 {
-                    
+
                     index_to_remove = i;
                     strcpy(nome_programa_fin, array_processos_running[i]->nome_programa);
-                    tempo_inicial_programa_fin=array_processos_running[i]->initial_timestamp;
+                    tempo_inicial_programa_fin = array_processos_running[i]->initial_timestamp;
                     break;
                 }
             }
@@ -172,23 +176,42 @@ int main(int argc, char const *argv[])
                 }
                 num_processos_running--;
             }
-            char *log_file_pid_name = malloc(10);
-            sprintf(log_file_pid_name, "%s/%d.txt",log_file_path, pid_a_remover);
-            int log_fd = open(log_file_pid_name,O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
-            if (log_fd == -1){
-                return 1;
+            if (argc == 2)
+            {
+                log_file_path = argv[1];
+                char *log_file_pid_name = malloc(10);
+                sprintf(log_file_pid_name, "%s/%d.txt", log_file_path, pid_a_remover);
+                int log_fd = open(log_file_pid_name, O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
+                if (log_fd == -1)
+                {
+                    return 1;
+                }
+                struct timeval end_time;
+                long start_time;
+                start_time = tempo_inicial_programa_fin;
+                char buffer_log[512];
+                memset(buffer_log, 0, sizeof(buffer_log));
+                gettimeofday(&end_time, NULL);
+                long process_time = (end_time.tv_sec * 1000 + end_time.tv_usec / 1000) - start_time;
+                snprintf(buffer_log, sizeof(buffer_log), "%d %s %ld ms\n", pid_a_remover, nome_programa_fin, process_time);
+                write(log_fd, buffer_log, strlen(buffer_log));
+                num_processos_running = num_processos_running - 1;
+                write(1, "\nremoved\n", strlen("\nremoved\n"));
+                close(log_fd);
             }
-            struct timeval end_time;
-            long start_time;
-            start_time = tempo_inicial_programa_fin;
-            char buffer_log[512];
-            memset( buffer_log, 0, sizeof( buffer_log));
-            gettimeofday(&end_time, NULL);
-            long process_time = (end_time.tv_sec * 1000 + end_time.tv_usec / 1000) - start_time;
-            snprintf(buffer_log, sizeof(buffer_log), "%d %s %ld ms\n", pid_a_remover, nome_programa_fin, process_time);
-            write(log_fd, buffer_log, strlen(buffer_log));
-            write(1, "\nremoved\n", strlen("\nremoved\n"));
-            close(log_fd);
+            else
+            {
+                struct timeval end_time;
+                long start_time;
+                start_time = tempo_inicial_programa_fin;
+                char buffer_log[512];
+                memset(buffer_log, 0, sizeof(buffer_log));
+                gettimeofday(&end_time, NULL);
+                long process_time = (end_time.tv_sec * 1000 + end_time.tv_usec / 1000) - start_time;
+                snprintf(buffer_log, sizeof(buffer_log), "%d %s %ld ms\n", pid_a_remover, nome_programa_fin, process_time);
+                num_processos_running = num_processos_running - 1;
+                write(1, "\nremoved\n", strlen("\nremoved\n"));
+            }
         }
     }
     return 0;
