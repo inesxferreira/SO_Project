@@ -17,9 +17,6 @@
 PEDIDOSEXECUCAO *array_processos_running[MAX];
 int num_processos_running = 0;
 
-PEDIDOSEXECUCAO *array_processos_finished[MAX];
-int num_processos_finished = 0;
-
 void remove_from_processos_running(int pid_a_remover)
 {
     int index_to_remove = 0;
@@ -33,10 +30,6 @@ void remove_from_processos_running(int pid_a_remover)
         }
     }
     num_processos_running--;
-}
-
-char *showStatus()
-{
 }
 
 int main(int argc, char const *argv[])
