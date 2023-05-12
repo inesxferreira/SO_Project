@@ -110,7 +110,7 @@ int main(int argc, char const *argv[])
                 return 0;
             }
         }
-         else if (strcmp(argv[2], "-p") == 0)
+        else if (strcmp(argv[2], "-p") == 0)
         {
             //"prog-a arg-1 (...) arg-n | prog-b arg-1 (...) arg-n | prog-c arg-1 (...) arg-n"
             char *token = strtok(argv[3], "|");
@@ -129,21 +129,44 @@ int main(int argc, char const *argv[])
             for (int i = 0; i < p; i++)
             {
                 j = 0;
-                char *arg = strtok(progs[p], " ");
+                char *arg = strtok(progs[i], " ");
                 args[i] = malloc(256 * sizeof(char *));
 
                 while (arg != NULL)
                 {
                     args[i][j] = arg;
                     j++;
-                  
+                    arg = strtok(NULL, " ");
                 }
             }
-            printf("args[0][0]: %s\n", args[0][0]);
 
             int pipo[p - 1][2];
+            char *command2;
+            /*for (int n = 0; n < p; n++)
+              {
+                  strcat(command2, args[n][0]);
+                  strcat(command2, " | ");
+              }*/
+            char buffer_pedido[512];
+            memset(buffer_pedido, 0, sizeof(buffer_pedido));
+            fd_clientToServer = open(CLIENT_TO_SERVER, O_WRONLY);
+            if (fd_clientToServer == -1)
+            { // não conseguiu abrir
+                perror("Erro ao abrir o fifo do cliente");
+                _exit(EXIT_FAILURE);
+            }
+            sprintf(buffer_pedido, "Add;%d;%s;%ld;\n", pdido.pid, args[0][0], start_time.tv_sec * 1000 + start_time.tv_usec / 1000); // guardamos no buffer o nome do programa
+            // o cliente envia para o servidor a info do pedido a executar
+            write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
+            char pid_string[30];
+            sprintf(pid_string, "Running PID %d\n", pdido.pid);
+            // o cliente notifica o utilizador do pedido a executar
+            write(STDOUT_FILENO, pid_string, strlen(pid_string));
+            close(fd_clientToServer);
+
             for (int n = 0; n < p; n++)
             {
+
                 if (n == 0)
                 {
                     pipe(pipo[0]);
@@ -153,10 +176,9 @@ int main(int argc, char const *argv[])
                         dup2(pipo[0][n], 1); // processo filho redireciona a saída padrão para o lado de escrita do pipe,
                         close(pipo[0][0]);
                         close(pipo[0][1]);
-
+                        printf("args[1][0]: %s\n", args[1][0]);
                         // o cliente executa o programa
                         execvp(args[0][0], args[0]);
-                        close(fd_clientToServer);
                         perror("Exec failed");
                         _exit(1);
                     }
@@ -209,8 +231,29 @@ int main(int argc, char const *argv[])
             {
                 wait(NULL);
             }
-        } }
+            fd_clientToServer = open(CLIENT_TO_SERVER, O_WRONLY);
+            if (fd_clientToServer == -1)
+            { // não conseguiu abrir
+                perror("Erro ao abrir o fifo do cliente");
+                _exit(EXIT_FAILURE);
+            }
+            int statuss;
+            waitpid(pid, &statuss, 0);
+            gettimeofday(&end_time, NULL);
+            process_time = (end_time.tv_sec - start_time.tv_sec) * 1000 +
+                           (end_time.tv_usec - start_time.tv_usec) / 1000;
 
+            // o cliente informa o servidor do pedido executado
+            sprintf(buffer_pedido, "%d Ended in %ld \n", pdido.pid, process_time); // guardamos no buffer o nome do programa
+            write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
+            char final_time[30];
+            sprintf(final_time, "Ended in %ld ms\n", process_time);
+
+            // o cliente informa o utilizador via standard output, do tempo de execução (em milisegundos) utilizado pelo programa
+            write(STDOUT_FILENO, final_time, strlen(final_time));
+            close(fd_clientToServer);
+        }
+    }
     else if (strcmp(argv[1], "status") == 0)
     {
         char buffer_pedido[512];
