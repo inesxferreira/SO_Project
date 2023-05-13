@@ -58,6 +58,7 @@ int main(int argc, char const *argv[])
 
             if ((pid = fork()) == 0)
             {
+
                 char buffer_pedido[512];
                 memset(buffer_pedido, 0, sizeof(buffer_pedido));
                 // abre o fd do cliente
@@ -95,7 +96,7 @@ int main(int argc, char const *argv[])
                 int statuss;
                 waitpid(pid, &statuss, 0);
                 gettimeofday(&end_time, NULL);
-                long time_at_the_end= end_time.tv_sec*1000+end_time.tv_usec/1000;
+                long time_at_the_end = end_time.tv_sec * 1000 + end_time.tv_usec / 1000;
                 process_time = (end_time.tv_sec - start_time.tv_sec) * 1000 +
                                (end_time.tv_usec - start_time.tv_usec) / 1000;
 
@@ -142,6 +143,18 @@ int main(int argc, char const *argv[])
             }
 
             int pipo[p - 1][2];
+
+            char *command = malloc(256 * sizeof(char)); // aloca memória para a string command
+            command[0] = '\0';                          // inicializa a string command como uma string vazia
+
+            for (int i = 0; i < p; i++)
+            {
+                strcat(command, args[i][0]); // concatena o nome do programa atual
+                if (i != p - 1)              // se este não for o último programa
+                {
+                    strcat(command, " | "); // concatena o caractere "|"
+                }
+            }
             char buffer_pedido[512];
             memset(buffer_pedido, 0, sizeof(buffer_pedido));
             fd_clientToServer = open(CLIENT_TO_SERVER, O_WRONLY);
@@ -150,7 +163,7 @@ int main(int argc, char const *argv[])
                 perror("Erro ao abrir o fifo do cliente");
                 _exit(EXIT_FAILURE);
             }
-            sprintf(buffer_pedido, "Add;%d;%s;%ld;\n", pdido.pid, args[0][0], start_time.tv_sec * 1000 + start_time.tv_usec / 1000); // guardamos no buffer o nome do programa
+            sprintf(buffer_pedido, "Add;%d;%s;%ld;\n", pdido.pid, command, start_time.tv_sec * 1000 + start_time.tv_usec / 1000); // guardamos no buffer o nome do programa
             // o cliente envia para o servidor a info do pedido a executar
             write(fd_clientToServer, buffer_pedido, strlen(buffer_pedido));
             char pid_string[30];
