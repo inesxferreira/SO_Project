@@ -171,7 +171,6 @@ int main(int argc, char const *argv[])
                         dup2(pipo[0][n], 1); // processo filho redireciona a saída padrão para o lado de escrita do pipe,
                         close(pipo[0][0]);
                         close(pipo[0][1]);
-                        printf("args[1][0]: %s\n", args[1][0]);
                         // o cliente executa o programa
                         execvp(args[0][0], args[0]);
                         perror("Exec failed");
